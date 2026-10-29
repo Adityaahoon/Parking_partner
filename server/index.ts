@@ -1,7 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { initDatabase } from './db.ts';
+import fs from 'fs';
+import path from 'path';
+import { db, initDatabase } from './db.ts';
+import { seedDatabase } from './seed.ts';
 import authRoutes from './routes/auth.ts';
 import parkingRoutes from './routes/parking.ts';
 import bookingsRoutes from './routes/bookings.ts';
@@ -13,15 +16,23 @@ import partnerRoutes from './routes/partner.ts';
 import adminRoutes from './routes/admin.ts';
 import notificationsRoutes from './routes/notifications.ts';
 
-import path from 'path';
-
 dotenv.config();
 
 // Ensure DB is initialized
 initDatabase();
 
+try {
+  const userCount = (db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number })?.count || 0;
+  if (userCount === 0) {
+    console.log('🌱 Database is empty. Seeding initial demo data...');
+    await seedDatabase();
+  }
+} catch (err) {
+  console.error('Database seeding check notice:', err);
+}
+
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5050;
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
@@ -48,6 +59,18 @@ app.get('/api/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development'
   });
 });
+
+// Serve frontend build if dist folder exists (Production / Hosted mode)
+const distPath = path.resolve(process.cwd(), 'dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/images')) {
+      return next();
+    }
+    res.sendFile(path.resolve(distPath, 'index.html'));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`🚗 Parking Partner API Server running at http://localhost:${PORT}`);

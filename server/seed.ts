@@ -859,8 +859,10 @@ export async function seedDatabase() {
   console.log('✅ Database seeded successfully with demo users, locations, slots, bookings, and reviews!');
 }
 
-// Run if called directly
-seedDatabase().catch(err => {
-  console.error('❌ Error during database seeding:', err);
-  process.exit(1);
-});
+// Run if called directly via CLI
+if (process.argv[1]?.includes('seed')) {
+  seedDatabase().catch(err => {
+    console.error('❌ Error during database seeding:', err);
+    process.exit(1);
+  });
+}
